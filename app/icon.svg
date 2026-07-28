@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Wagner Santos">
+  <rect width="100" height="100" rx="24" fill="#FFD84D" />
+  <path
+    d="M22 31 L36 70 L50 44 L64 70 L78 31"
+    fill="none"
+    stroke="#10193F"
+    stroke-width="13"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

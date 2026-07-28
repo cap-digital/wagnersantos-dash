@@ -2,26 +2,165 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Design tokens — derived from the Wagner Santos campaign identity
+  (royal blue / brand yellow). Marks sit LIGHTER than the plane, so the
+  light-mode lightness band applies to this mid-tone surface and validated with the
+  dataviz palette validator against the card surface #25377F:
+
+    categorical (adjacent, 6 slots) ....... ALL CHECKS PASS
+      worst CVD ΔE 10.5 · worst normal-vision ΔE 19.1 · contrast all ≥ 3:1
+    categorical (all-pairs, first 3) ...... ALL CHECKS PASS
+    ordinal aqua ramp (6 steps) ........... ALL CHECKS PASS
+
+  Slot order: gold > aqua > violet > green > sky > pink. Colour follows the
+  entity, never its rank — never reassign a slot on filter.
+
+  These variables serve raw CSS (gradients, decorations). The same hexes are
+  repeated as literals in `tailwind.config.ts` — Tailwind cannot compute alpha
+  from a `var()`, so `bg-accent/45` would compile to nothing — and in
+  `components/charts/theme.ts` for Recharts. Keep the three in sync.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+
+  /* Brand */
+  --brand-royal: #3a55b4;
+  --brand-royal-light: #4a66c8;
+  --brand-navy: #1d2c6e;
+  --brand-yellow: #ffd84d;
+  --brand-yellow-deep: #f2c230;
+
+  /* Planes & surfaces — the campaign's royal blue, not near-black */
+  --page: #1b2a6c;
+  --chrome: #16255f;
+  --surface-1: #25377f;
+  --surface-2: #2c4090;
+  --surface-3: #35499e;
+
+  /* Ink */
+  --ink-1: #ffffff; /* 10.9:1 */
+  --ink-2: #d5ddf8; /*  8.0:1 */
+  --ink-3: #a8b4e4; /*  5.3:1 */
+
+  /* Chart chrome */
+  --grid: #3b4e9e;
+  --axis: #46599f;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.22);
+
+  /* Accent — single-series data marks, hero figures, active chrome */
+  --accent: #ffd84d; /* 7.9:1 */
+  --accent-soft: rgba(255, 216, 77, 0.16);
+
+  /* Categorical series (>=2 series only) */
+  --s1: #d6aa35;
+  --s2: #43cbba;
+  --s3: #a99bf7;
+  --s4: #5fc97d;
+  --s5: #7fb4f5;
+  --s6: #f58bb0;
+
+  /* Ordinal ramp — aqua, light -> dark (funnel stages) */
+  --o1: #e8fbf6;
+  --o2: #b0ebe0;
+  --o3: #7ed9c9;
+  --o4: #4fc4b2;
+  --o5: #2ca997;
+  --o6: #17897a;
+
+  /* Status — reserved meaning, always paired with icon + label */
+  --good: #3fd97f;
+  --good-text: #7ce8a6; /* 7.2:1 */
+  --warning: #ffb03a;
+  --serious: #ff9e6b;
+  --critical: #ff6b6b;
+  --critical-text: #ff9090; /* 5.0:1 */
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--border);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--page);
+  color: var(--ink-1);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* The royal-blue field from the campaign identity */
+.brand-field {
+  background:
+    radial-gradient(120% 90% at 82% 8%, rgba(122, 107, 208, 0.5) 0%, transparent 55%),
+    radial-gradient(90% 70% at 8% 92%, rgba(58, 85, 180, 0.55) 0%, transparent 60%),
+    linear-gradient(155deg, #35479f 0%, #3a55b4 42%, #4657b8 70%, #5b57ae 100%);
+}
+
+.page-field {
+  background:
+    radial-gradient(85% 55% at 88% -8%, rgba(74, 102, 200, 0.55) 0%, transparent 60%),
+    radial-gradient(70% 50% at 2% 2%, rgba(122, 107, 208, 0.32) 0%, transparent 58%),
+    linear-gradient(180deg, #223273 0%, var(--page) 46%, #182561 100%);
+  background-attachment: fixed;
+}
+
+/* Dashed rule motif borrowed from the landing page decorations */
+.dash-rule {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--border-strong) 0 6px,
+    transparent 6px 14px
+  );
+}
+
+::selection {
+  background: var(--brand-yellow);
+  color: #16255f;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-yellow);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Scrollbars inside scrollable panels */
+.slim-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+.slim-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.slim-scroll::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 999px;
+}
+.slim-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Recharts: keep the focus ring off the SVG surfaces */
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-sector:focus,
+.recharts-rectangle:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
