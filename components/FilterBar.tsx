@@ -30,7 +30,7 @@ export function FilterBar() {
   const comparing = previousRows.length > 0;
 
   return (
-    <div className="relative z-30 mb-5 lg:sticky lg:top-[92px]">
+    <div className="relative z-30 mb-5">
       <div className="flex flex-wrap items-center gap-2 rounded-[22px] border border-white/10 bg-chrome/85 p-2 shadow-card backdrop-blur-xl sm:rounded-pill sm:pl-2.5">
         <DateRangePicker range={range} allDays={allDays} onChange={setRange} />
 

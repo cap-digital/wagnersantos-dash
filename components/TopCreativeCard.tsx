@@ -61,14 +61,16 @@ export function TopCreativeCard({
         {selector}
       </div>
 
-      <div className="flex items-start gap-4 px-5 pb-5 pt-4">
+      {/* The portrait runs the full height of this block, so it stops one
+          margin short of the insight below instead of leaving dead space. */}
+      <div className="flex flex-1 items-stretch gap-4 px-5 pb-4 pt-4">
         <CreativeThumb
           src={creative?.thumbnail}
           ad={pick.ad}
-          className="h-[150px] w-[120px] shrink-0 border border-white/10"
+          className="min-h-[190px] w-[140px] shrink-0 self-stretch border border-white/10 sm:w-[180px]"
           rounded="rounded-2xl"
         />
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-ink-3">
             Melhor em {def.label}
           </p>

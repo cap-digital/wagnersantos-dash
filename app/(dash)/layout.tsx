@@ -8,7 +8,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <DataProvider>
       <div className="page-field min-h-screen">
         <TopBar />
-        <main className="mx-auto max-w-[1440px] px-3 pb-20 pt-[132px] sm:px-5 sm:pt-[104px]">
+        {/* The header is one row at every width now, so the offset no longer
+            needs a taller mobile variant. */}
+        <main className="mx-auto max-w-[1440px] px-3 pb-20 pt-[104px] sm:px-5">
           <FilterBar />
           <DataGate>{children}</DataGate>
         </main>

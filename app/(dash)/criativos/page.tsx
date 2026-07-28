@@ -7,7 +7,6 @@ import { Kpi } from "@/components/ui/Kpi";
 import { RankingList } from "@/components/ui/RankingList";
 import { MetricSelect } from "@/components/ui/MetricSelect";
 import { TopCreativeCard } from "@/components/TopCreativeCard";
-import { CreativeGallery } from "@/components/CreativeGallery";
 import { CreativeBarChart } from "@/components/charts/CreativeBarChart";
 import { CreativeScatterChart } from "@/components/charts/CreativeScatterChart";
 import { VideoFunnelChart } from "@/components/charts/VideoFunnelChart";
@@ -177,8 +176,8 @@ export default function CreativesPage() {
       </section>
 
       <section>
-        <SectionTitle eyebrow="Peças" title="Galeria" />
-        <CreativeGallery rows={rows} />
+        <SectionTitle eyebrow="Detalhamento" title="Tabela de criativos" />
+        <CreativeTable rows={rows} />
       </section>
 
       <section>
@@ -224,11 +223,6 @@ export default function CreativesPage() {
             insightTone="good"
           />
         </div>
-      </section>
-
-      <section>
-        <SectionTitle eyebrow="Detalhamento" title="Tabela de criativos" />
-        <CreativeTable rows={rows} />
       </section>
     </div>
   );

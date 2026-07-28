@@ -10,6 +10,10 @@ const NAV = [
   { href: "/criativos", label: "Criativos", short: "Criativos" },
 ];
 
+/** Both round controls on the right read as one set, so they share a class. */
+const CONTROL =
+  "grid h-9 w-9 shrink-0 place-items-center rounded-pill border border-white/[0.12] bg-chrome/80 text-ink-2 shadow-float backdrop-blur-xl transition hover:bg-chrome hover:text-ink-1 disabled:opacity-45 sm:h-10 sm:w-10";
+
 function RefreshIcon({ spinning }: { spinning: boolean }) {
   return (
     <svg
@@ -28,48 +32,39 @@ function RefreshIcon({ spinning }: { spinning: boolean }) {
   );
 }
 
+function HomeIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 10.5 12 3l9 7.5" />
+      <path d="M5.5 9.5V20h13V9.5" />
+    </svg>
+  );
+}
+
 export function TopBar() {
   const pathname = usePathname();
   const { reload, refreshing, status } = useCampaign();
 
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
-      <div className="pointer-events-auto mx-auto flex max-w-[1440px] flex-col gap-2 rounded-[26px] border border-white/[0.12] bg-chrome/85 p-2 shadow-float backdrop-blur-xl sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:rounded-pill sm:p-2 sm:pl-3">
-        <div className="flex items-center justify-between gap-3">
-          <Link
-            href="/"
-            className="group flex items-center gap-2.5 rounded-pill px-1 py-1 sm:px-1.5"
-          >
-            <span
-              aria-hidden
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-[13px] bg-accent text-[13px] font-black tracking-tight text-[#16255F] transition group-hover:scale-[1.04]"
-            >
-              WS
-            </span>
-            <span className="min-w-0 leading-none">
-              <span className="block truncate text-[13.5px] font-extrabold tracking-[-0.02em] text-ink-1">
-                Wagner Santos
-              </span>
-              <span className="mt-1 block truncate text-[10.5px] font-semibold uppercase tracking-[0.14em] text-ink-3">
-                Painel de mídia
-              </span>
-            </span>
-          </Link>
-
-          <button
-            type="button"
-            onClick={reload}
-            disabled={refreshing || status === "loading"}
-            aria-label="Atualizar dados"
-            title="Atualizar dados"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-pill border border-white/[0.12] bg-white/5 text-ink-2 transition hover:bg-white/10 hover:text-ink-1 disabled:opacity-45 sm:hidden"
-          >
-            <RefreshIcon spinning={refreshing} />
-          </button>
-        </div>
-
-        <nav aria-label="Seções do painel" className="flex-1 sm:flex-none sm:justify-self-center">
-          <ul className="flex items-center gap-1 rounded-pill border border-white/10 bg-white/[0.04] p-1">
+      {/* No shared chrome: each control carries its own blur so it stays legible
+          over whatever scrolls underneath it. The empty first grid column is
+          what keeps the nav centred on the page rather than on the controls. */}
+      <div className="pointer-events-auto mx-auto flex max-w-[1440px] items-center gap-2 sm:grid sm:grid-cols-[1fr_auto_1fr]">
+        <nav
+          aria-label="Seções do painel"
+          className="min-w-0 flex-1 sm:col-start-2 sm:flex-none sm:justify-self-center"
+        >
+          <ul className="flex items-center gap-1 rounded-pill border border-white/10 bg-chrome/80 p-1 shadow-float backdrop-blur-xl">
             {NAV.map((item) => {
               const active = pathname === item.href;
               return (
@@ -92,14 +87,18 @@ export function TopBar() {
           </ul>
         </nav>
 
-        <div className="hidden items-center gap-2 sm:flex sm:justify-self-end">
+        <div className="flex shrink-0 items-center gap-2 sm:col-start-3 sm:justify-self-end">
+          <Link href="/" aria-label="Voltar à página inicial" title="Página inicial" className={CONTROL}>
+            <HomeIcon />
+          </Link>
+
           <button
             type="button"
             onClick={reload}
             disabled={refreshing || status === "loading"}
             aria-label="Atualizar dados"
             title="Atualizar dados"
-            className="grid h-10 w-10 place-items-center rounded-pill border border-white/[0.12] bg-white/5 text-ink-2 transition hover:bg-white/10 hover:text-ink-1 disabled:opacity-45"
+            className={CONTROL}
           >
             <RefreshIcon spinning={refreshing} />
           </button>

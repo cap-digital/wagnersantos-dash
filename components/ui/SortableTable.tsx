@@ -42,6 +42,9 @@ export function SortableTable<T>({
   emptyMessage = "Sem registros no período selecionado.",
   maxHeight = 460,
   highlightTop = false,
+  fontSize = 12.5,
+  headFontSize = 10.5,
+  highlightSorted = false,
 }: {
   data: T[];
   columns: Column<T>[];
@@ -52,6 +55,15 @@ export function SortableTable<T>({
   maxHeight?: number;
   /** Marks the first row of the current sort with the accent rail. */
   highlightTop?: boolean;
+  /**
+   * Body and header type size in px. Set as numbers rather than utility
+   * classes because callers pass them per table — a `text-[${n}px]` built at
+   * runtime is never emitted by Tailwind.
+   */
+  fontSize?: number;
+  headFontSize?: number;
+  /** Paints the column being sorted on in the accent colour, top to bottom. */
+  highlightSorted?: boolean;
 }) {
   const [sort, setSort] = useState<SortState>(initialSort);
 
@@ -101,7 +113,7 @@ export function SortableTable<T>({
 
   return (
     <div className="slim-scroll overflow-auto" style={{ maxHeight }}>
-      <table className="w-full min-w-[720px] border-collapse text-[12.5px]">
+      <table className="w-full min-w-[720px] border-collapse" style={{ fontSize }}>
         {caption ? <caption className="sr-only">{caption}</caption> : null}
         <thead className="sticky top-0 z-10 bg-surface-1">
           <tr>
@@ -115,7 +127,12 @@ export function SortableTable<T>({
                     state === "none" ? "none" : state === "asc" ? "ascending" : "descending"
                   }
                   className={clsx(
-                    "border-b border-white/10 bg-surface-1 p-0",
+                    "border-b p-0",
+                    // Opaque on both branches — the header is sticky, so rows
+                    // would scroll through anything translucent.
+                    highlightSorted && state !== "none"
+                      ? "border-accent/40 bg-surface-3"
+                      : "border-white/10 bg-surface-1",
                     c.align === "right" ? "text-right" : "text-left",
                     c.className,
                   )}
@@ -124,9 +141,14 @@ export function SortableTable<T>({
                     type="button"
                     onClick={() => toggle(c.key)}
                     title={c.hint}
+                    style={{ fontSize: headFontSize }}
                     className={clsx(
-                      "w-full whitespace-nowrap px-3 py-2.5 text-[10.5px] font-bold uppercase tracking-[0.08em] transition hover:text-ink-1",
-                      state === "none" ? "text-ink-3" : "text-ink-1",
+                      "w-full whitespace-nowrap px-3 py-2.5 font-bold uppercase tracking-[0.08em] transition",
+                      state === "none"
+                        ? "text-ink-3 hover:text-ink-1"
+                        : highlightSorted
+                          ? "text-accent"
+                          : "text-ink-1",
                       c.align === "right" ? "text-right" : "text-left",
                     )}
                   >
@@ -154,14 +176,20 @@ export function SortableTable<T>({
                   c.bar && typeof raw === "number" && max > 0
                     ? `${Math.max(2, (Math.abs(raw) / max) * 100)}%`
                     : null;
+                const lit = highlightSorted && sort.key === c.key;
                 return (
                   <td
                     key={c.key}
                     className={clsx(
                       "relative whitespace-nowrap px-3 py-2.5",
-                      c.align === "right"
-                        ? "text-right tabular-nums text-ink-1"
-                        : "text-left text-ink-2",
+                      c.align === "right" ? "text-right tabular-nums" : "text-left",
+                      // The band is neutral white rather than yellow: a yellow
+                      // wash on this royal surface reads as grey.
+                      lit
+                        ? "bg-white/[0.07] text-accent"
+                        : c.align === "right"
+                          ? "text-ink-1"
+                          : "text-ink-2",
                       c.className,
                     )}
                   >

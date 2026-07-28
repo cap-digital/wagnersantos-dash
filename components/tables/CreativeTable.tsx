@@ -21,6 +21,51 @@ type Line = {
   share: number;
 };
 
+/**
+ * Preview big enough to actually read the piece, and clickable: the thumbnail
+ * is the shortest path from a row of numbers to the post it describes.
+ */
+function CreativeCell({
+  ad,
+  label,
+  thumbnail,
+  permalink,
+}: {
+  ad: string;
+  label: string;
+  thumbnail: string | null | undefined;
+  permalink: string | null | undefined;
+}) {
+  const thumb = (
+    <CreativeThumb src={thumbnail} ad={ad} className="h-[108px] w-[96px] shrink-0" rounded="rounded-lg" />
+  );
+
+  if (!permalink) return thumb;
+
+  return (
+    <a
+      href={permalink}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`Abrir ${label} no Instagram`}
+      className="group relative inline-flex shrink-0 rounded-lg outline-none ring-accent transition focus-visible:ring-2"
+    >
+      {thumb}
+      <span
+        aria-hidden
+        className="absolute inset-0 grid place-items-center rounded-lg bg-chrome/70 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+      >
+        <span className="inline-flex items-center gap-1 rounded-pill bg-accent px-2 py-1 text-[10px] font-black uppercase tracking-[0.06em] text-[#16255F]">
+          Abrir
+          <svg viewBox="0 0 24 24" aria-hidden className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 17 17 7M8 7h9v9" />
+          </svg>
+        </span>
+      </span>
+    </a>
+  );
+}
+
 export function CreativeTable({ rows }: { rows: Row[] }) {
   const { creativeOf } = useCampaign();
 
@@ -48,16 +93,11 @@ export function CreativeTable({ rows }: { rows: Row[] }) {
         label: "Criativo",
         value: (r) => r.label,
         render: (r) => (
-          <span className="flex items-center gap-2.5">
-            <CreativeThumb
-              src={creativeOf(r.ad)?.thumbnail}
-              ad={r.ad}
-              className="h-9 w-8 shrink-0"
-              rounded="rounded-md"
-            />
+          <span className="flex items-center gap-3.5">
+            <CreativeCell ad={r.ad} permalink={creativeOf(r.ad)?.permalink} thumbnail={creativeOf(r.ad)?.thumbnail} label={r.label} />
             <span className="flex flex-col gap-0.5">
               <span className="font-semibold text-ink-1">{r.label}</span>
-              <span className="text-[11px] text-ink-3">
+              <span className="text-[13.5px] text-ink-3">
                 {r.kindLabel}
                 {r.launched ? ` · ${r.launched}` : ""}
               </span>
@@ -74,7 +114,7 @@ export function CreativeTable({ rows }: { rows: Row[] }) {
         render: (r) => (
           <span className="flex flex-col items-end gap-0.5">
             <span className="font-semibold">{fmtBRL(r.m.spend)}</span>
-            <span className="text-[10.5px] text-ink-3">{fmtPct(r.share, 0)}</span>
+            <span className="text-[13.5px] text-ink-3">{fmtPct(r.share, 0)}</span>
           </span>
         ),
       },
@@ -172,7 +212,7 @@ export function CreativeTable({ rows }: { rows: Row[] }) {
   const bestVtr = [...withVolume].sort((a, b) => (b.m.vtr ?? -1) - (a.m.vtr ?? -1))[0];
 
   const insight = bestCpe
-    ? `Clique em qualquer cabeçalho para reordenar. Considerando apenas criativos com pelo menos 300 impressões, **${
+    ? `Clique em qualquer cabeçalho para reordenar, ou na miniatura para abrir a peça no Instagram. Considerando apenas criativos com pelo menos 300 impressões, **${
         bestCpe.label
       }** entrega o engajamento mais barato (${fmtBRLPrecise(
         bestCpe.m.cpe,
@@ -194,7 +234,10 @@ export function CreativeTable({ rows }: { rows: Row[] }) {
           initialSort={{ key: "spend", dir: "desc" }}
           rowKey={(r) => r.ad}
           caption="Métricas por criativo"
-          maxHeight={520}
+          maxHeight={760}
+          fontSize={15}
+          headFontSize={13}
+          highlightSorted
           highlightTop
         />
       </div>

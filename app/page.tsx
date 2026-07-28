@@ -185,23 +185,6 @@ export default function CoverPage() {
                 className="h-auto w-full object-cover"
               />
             </div>
-
-            <div className="absolute -bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-2.5 rounded-2xl bg-white px-4 py-2.5 shadow-[0_18px_40px_-18px_rgba(6,12,40,.8)]">
-              <span
-                aria-hidden
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#22C55E] text-[13px] font-black text-white"
-              >
-                ✓
-              </span>
-              <span className="leading-tight">
-                <span className="block whitespace-nowrap text-[11px] font-black uppercase tracking-[0.1em] text-[#1E2B6B]">
-                  Dados em tempo real
-                </span>
-                <span className="block whitespace-nowrap text-[11.5px] text-[#5A6486]">
-                  Meta Ads · Performance
-                </span>
-              </span>
-            </div>
           </div>
         </section>
       </main>
