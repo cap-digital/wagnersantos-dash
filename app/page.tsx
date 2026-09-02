@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { loadCampaign, peekCampaign } from "@/lib/client-cache";
+import { SOURCE_INFO, type SourceId } from "@/lib/sources";
 
 const CHIPS = ["Meta Ads"];
 
@@ -43,19 +44,20 @@ function ArrowIcon() {
 
 export default function CoverPage() {
   const router = useRouter();
-  const [state, setState] = useState<"idle" | "loading" | "error">("idle");
+  const [pending, setPending] = useState<SourceId | null>(null);
+  const [failed, setFailed] = useState<SourceId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    router.prefetch("/visao-geral");
-    router.prefetch("/criativos");
+    router.prefetch("/campanha/visao-geral");
+    router.prefetch("/pre-campanha/visao-geral");
 
-    // Warm the payload up on arrival. The source takes several seconds, so by
-    // the time someone presses the button it is usually already in memory and
-    // the dashboard opens instantly.
+    // Warm the live panel on arrival — it is the one nearly everyone opens, and
+    // its first uncached fetch is the slow one. The frozen pre-campaign is left
+    // alone so the two never compete for the same cold start.
     let alive = true;
-    loadCampaign()
+    loadCampaign("campanha")
       .then(() => {
         if (alive) setReady(true);
       })
@@ -67,21 +69,24 @@ export default function CoverPage() {
     };
   }, [router]);
 
-  async function enter(target: string, force = false) {
-    setState("loading");
+  async function enter(source: SourceId, force = false) {
+    setPending(source);
+    setFailed(null);
     setError(null);
     try {
-      await loadCampaign(force);
-      setReady(true);
-      router.push(target);
+      await loadCampaign(source, force);
+      if (source === "campanha") setReady(true);
+      router.push(`/${SOURCE_INFO[source].slug}/visao-geral`);
     } catch (err) {
-      setState("error");
+      setFailed(source);
       setError(err instanceof Error ? err.message : "Falha ao carregar os dados.");
+    } finally {
+      setPending(null);
     }
   }
 
-  const busy = state === "loading";
-  const warming = !ready && state !== "error" && !peekCampaign();
+  const busy = pending !== null;
+  const warming = !ready && !failed && !peekCampaign("campanha");
 
   return (
     <div className="brand-field relative min-h-screen overflow-hidden">
@@ -92,7 +97,7 @@ export default function CoverPage() {
         <section className="animate-fade-up">
           <span className="inline-flex items-center gap-2 rounded-pill border border-white/25 bg-white/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-white/85 backdrop-blur-sm">
             <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-brand-yellow" />
-            Pré-campanha 2026
+            Eleições 2026
           </span>
 
           <h1 className="mt-5 text-[clamp(2.6rem,8.5vw,5.2rem)] font-black uppercase leading-[0.92] tracking-[-0.035em] text-[#1E2B6B]">
@@ -104,9 +109,9 @@ export default function CoverPage() {
 
           <p className="mt-5 max-w-[46ch] text-[15px] leading-relaxed text-white/85 sm:text-base">
             Resultados das campanhas de{" "}
-            <strong className="font-semibold text-brand-yellow">Meta Ads</strong> da pré-campanha de
-            Wagner Santos — investimento, entrega, respostas do público e desempenho de cada
-            criativo, com custos e taxas calculados sobre a base do período.
+            <strong className="font-semibold text-brand-yellow">Meta Ads</strong> de Wagner
+            Santos — investimento, entrega, respostas do público e desempenho de cada criativo,
+            com custos e taxas calculados sobre a base do período.
           </p>
 
           <ul className="mt-6 flex flex-wrap gap-2">
@@ -120,24 +125,40 @@ export default function CoverPage() {
             ))}
           </ul>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          {/* The live panel leads: filled, first in the reading order and first
+              in the tab order. The closed period stays reachable as a quieter
+              outline button carrying its own status. */}
+          <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
             <button
               type="button"
-              onClick={() => enter("/visao-geral")}
+              onClick={() => enter("campanha")}
               disabled={busy}
-              className="group inline-flex items-center justify-center gap-2.5 rounded-pill border border-white/35 px-7 py-4 text-[13.5px] font-black uppercase tracking-[0.1em] text-white transition hover:bg-white/10 active:scale-[.985] disabled:cursor-wait disabled:opacity-70"
+              className="group inline-flex items-center justify-center gap-2.5 rounded-pill bg-brand-yellow px-7 py-4 text-[13.5px] font-black uppercase tracking-[0.1em] text-[#16255F] shadow-[0_18px_44px_-18px_rgba(255,216,77,0.75)] transition hover:brightness-105 active:scale-[.985] disabled:cursor-wait disabled:opacity-70"
             >
-              {busy ? <Spinner /> : null}
-              {busy ? "Carregando dados…" : "Acessar Painel Mídia"}
-              {!busy ? (
+              {pending === "campanha" ? <Spinner /> : null}
+              {pending === "campanha" ? "Carregando dados…" : "Acessar Painel Campanha"}
+              {pending !== "campanha" ? (
                 <span className="transition-transform group-hover:translate-x-0.5">
                   <ArrowIcon />
                 </span>
               ) : null}
             </button>
+
+            <button
+              type="button"
+              onClick={() => enter("pre-campanha")}
+              disabled={busy}
+              className="group inline-flex items-center justify-center gap-2.5 rounded-pill border border-white/30 px-5 py-3 text-[12.5px] font-bold uppercase tracking-[0.08em] text-white/85 transition hover:bg-white/10 hover:text-white active:scale-[.985] disabled:cursor-wait disabled:opacity-70"
+            >
+              {pending === "pre-campanha" ? <Spinner /> : null}
+              {pending === "pre-campanha" ? "Carregando…" : "Acessar Painel Pré-campanha"}
+              <span className="rounded-pill bg-white/15 px-2 py-0.5 text-[9.5px] font-black uppercase tracking-[0.12em] text-white/80">
+                Encerrada
+              </span>
+            </button>
           </div>
 
-          {state !== "error" ? (
+          {!failed ? (
             <p
               aria-live="polite"
               className="mt-3 flex items-center gap-2 text-[12px] text-white/70"
@@ -152,17 +173,20 @@ export default function CoverPage() {
             </p>
           ) : null}
 
-          {state === "error" ? (
+          {failed ? (
             <p
               role="alert"
               className="mt-4 inline-flex items-start gap-2 rounded-xl border border-white/30 bg-[#2A1030]/45 px-4 py-3 text-[13px] text-white"
             >
               <span aria-hidden className="mt-px">▼</span>
               <span>
-                <strong className="font-semibold">Não foi possível carregar.</strong> {error}{" "}
+                <strong className="font-semibold">
+                  Não foi possível carregar o painel {SOURCE_INFO[failed].label.toLowerCase()}.
+                </strong>{" "}
+                {error}{" "}
                 <button
                   type="button"
-                  onClick={() => enter("/visao-geral", true)}
+                  onClick={() => enter(failed, true)}
                   className="underline underline-offset-2"
                 >
                   Tentar de novo
@@ -177,7 +201,7 @@ export default function CoverPage() {
             <div className="overflow-hidden rounded-[28px] border border-white/20 shadow-[0_40px_90px_-40px_rgba(6,12,40,.95)]">
               <Image
                 src="/wagner.webp"
-                alt="Retrato de Wagner Santos, pré-candidato a Deputado Estadual pela Bahia"
+                alt="Retrato de Wagner Santos, candidato a Deputado Estadual pela Bahia"
                 width={1488}
                 height={1500}
                 priority

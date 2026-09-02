@@ -1,7 +1,23 @@
 # Painel de Mídia — Wagner Santos
 
-Dashboard de performance das campanhas de Meta Ads da pré-campanha de Wagner Santos.
+Dashboard de performance das campanhas de Meta Ads de Wagner Santos.
 Next.js 14 (App Router), Tailwind e Recharts.
+
+São **dois painéis sobre os mesmos componentes**, separados apenas pela origem
+dos dados:
+
+| Painel | Rota | Origem | Estado |
+| --- | --- | --- | --- |
+| Campanha | `/campanha/...` | Meta Marketing API, ao vivo | ativo |
+| Pré-campanha | `/pre-campanha/...` | função do Supabase | encerrado, congelado |
+
+A capa oferece os dois: campanha em destaque, pré-campanha como botão secundário
+com selo de encerrada. As rotas antigas `/visao-geral` e `/criativos` redirecionam
+para a pré-campanha, que é o dado que sempre mostraram.
+
+Gráficos, tabelas, filtros, KPIs e cálculos são **compartilhados**. A única
+diferença entre os painéis é a camada de dados, e as duas entregam o mesmo
+`CampaignPayload` normalizado.
 
 ## Rodando
 
@@ -12,11 +28,59 @@ npm run build    # build de produção
 npm run lint
 ```
 
-## Origem dos dados
+## Origem dos dados — campanha (Meta Marketing API)
+
+A rota `app/api/campanha/route.ts` consulta a API direto, sempre no servidor. O
+token nunca chega ao navegador: `lib/meta/client.ts` importa `server-only`, que
+faz o build falhar se algum componente de cliente tentar puxar esse módulo.
+
+### Cache particionado
+
+Não há banco nem snapshot em disco — o deploy é na Vercel, onde o filesystem é
+efêmero e a memória do processo morre com a instância. A validade fica no **Data
+Cache do Next**, que persiste entre invocações e é compartilhado entre instâncias:
+
+- **dias fechados**: `revalidate` de 24 h. O histórico não muda;
+- **dia corrente**: `revalidate` de 10 minutos, com a tag `meta:today`.
+
+As consultas são **particionadas por mês**, e cada página de cada partição é uma
+entrada de cache própria. Duas razões: uma entrada do Data Cache da Vercel para
+em 2 MB, e uma página de 1.000 linhas mede ~980 KB; e um mês fechado vira uma
+chave estável, reaproveitada indefinidamente. As partições são buscadas em
+paralelo e costuradas em memória.
+
+Medido nesta conta: **19 s** na primeira carga com cache vazio (6 páginas de
+insights + campanhas + criativos, 8 entradas somando 4,6 MB, maior entrada 1,2 MB)
+e **0,7 s** nas seguintes. Cresce ~310 linhas por dia.
+
+O selo de frescor mostra a idade do **dia corrente**, lida do cabeçalho `Date` da
+resposta da Meta — ele sobrevive dentro do cache, então o painel informa a idade
+real do dado em vez de reiniciar a contagem a cada request.
+
+### Atualizar
+
+O botão de atualizar revalida **apenas o dia corrente**, no máximo **uma vez por
+minuto**. O limite se apoia na idade do dado em cache, não num contador em
+memória, então vale entre instâncias em vez de zerar a cada cold start.
+
+Na atualização forçada o dia corrente é lido fora do cache. Só invalidar a tag não
+bastaria: o Next memoiza fetches por request, e a segunda leitura devolveria a
+cópia que o próprio request já resolveu — o usuário veria "atualizado" sobre os
+mesmos números.
+
+### Falhas
+
+- **Token expirado ou inválido** (código 190) e **limite de chamadas** (4, 17, 32,
+  613) viram mensagem em português na interface, nunca tela branca.
+- Se **uma partição falhar e as outras não**, o painel mostra o que carregou com
+  um aviso nomeando o período que faltou. Só um erro de token derruba tudo, porque
+  nenhum dado parcial compensa uma credencial vencida.
+
+## Origem dos dados — pré-campanha (Supabase)
 
 Os dados vêm de uma função do Supabase, consumida pela rota `app/api/meta/route.ts`,
 que serve como proxy: mantém a chave fora do bundle do navegador e normaliza os
-registros.
+registros. **Este painel não mudou** — mesma origem, mesmo cache, mesmos números.
 
 ### Desempenho
 
@@ -73,10 +137,11 @@ identificador do anúncio quando a assinatura vence.
 
 ```
 app/
-  page.tsx                  capa — carrega os dados e entra no painel
+  page.tsx                  capa — dois botões, um por painel
   not-found.tsx             404
-  api/meta/route.ts         proxy + normalização da origem
-  (dash)/
+  api/meta/route.ts         pré-campanha: proxy do Supabase
+  api/campanha/route.ts     campanha: Meta Marketing API
+  (dash)/[source]/
     layout.tsx              topbar flutuante, filtros e provider
     visao-geral/page.tsx
     criativos/page.tsx
@@ -85,14 +150,19 @@ components/
   tables/                   tabelas ordenáveis
   ui/                       Card, KPI, Insight, RankingList, SortableTable
 lib/
+  sources.ts                as duas fontes e seus rótulos
+  meta/client.ts            cliente Graph, server-only, erros traduzidos
+  meta/insights.ts          partições, cache e tolerância a falha
+  meta/normalize.ts         linhas da API → mesmo formato do Supabase
   metrics.ts                agregação e cálculo de taxas e custos
-  normalize.ts              coerção dos registros da origem
+  normalize.ts              coerção dos registros do Supabase
   format.ts                 formatação pt-BR
   labels.ts                 leitura dos nomes de campanha/conjunto/anúncio
 ```
 
-Rotas são arquivos reais do App Router, então recarregar `/visao-geral` ou
-`/criativos` funciona sem 404 — não há roteamento só no cliente.
+Rotas são arquivos reais do App Router, então recarregar `/campanha/visao-geral`
+funciona sem 404 — não há roteamento só no cliente. O segmento `[source]` aceita
+apenas `campanha` e `pre-campanha`; qualquer outro valor cai no 404.
 
 ## Métricas
 
@@ -112,6 +182,37 @@ média das linhas — uma linha de 54 impressões não pode pesar igual a uma de
 | Custo por visita ao perfil | investimento ÷ visitas ao perfil |
 
 Denominador zero devolve `null` e aparece como travessão, nunca como `0` ou `NaN`.
+
+### Campos da Meta API
+
+O que a planilha entregava pronto, a rota da campanha lê assim:
+
+| Campo | Origem na API |
+| --- | --- |
+| investimento, impressões, cliques | `spend`, `impressions`, `clicks` |
+| engajamentos | `actions[post_engagement]` |
+| reações · comentários · compart. · salvos | `actions[post_reaction · comment · post · onsite_conversion.post_save]` |
+| visitas ao perfil | `instagram_profile_visits` |
+| views de vídeo (3s) | `actions[video_view]` |
+| ThruPlays e 25/50/75/100% | `video_*_watched_actions[video_view]` |
+| miniatura e permalink | `creative.thumbnail_width(1080).thumbnail_height(1080){…}` |
+
+As taxas e custos **não** vêm da API: são recalculados em `lib/metrics.ts` sobre a
+soma do recorte filtrado, como sempre foram.
+
+### Identidade dos criativos
+
+Um mesmo post costuma rodar em vários anúncios — um por campanha, um por cidade —
+e o painel trata isso como **um criativo**, agrupado pelo permalink do Instagram,
+com o id do anúncio como reserva.
+
+Nomes, porém, não identificam nada sozinhos: a numeração recomeça a cada campanha
+(dois anúncios diferentes chamados `AD10`) e oito anúncios se chamam apenas `[AD]`.
+Quando dois criativos renderizariam o mesmo rótulo, o painel acrescenta a cidade do
+conjunto e, se ainda empatar, um contador. O mesmo vale para conjuntos: cidade,
+objetivo e posicionamento juntos ainda deixam cinco pares ambíguos nesta conta, e o
+rótulo do gráfico é a categoria do eixo — dois conjuntos numa categoria seria uma
+barra escondendo a outra. Por isso o código `CJ` vem na frente.
 
 ## Filtros
 
@@ -150,6 +251,21 @@ Regras em uso:
   a mesma unidade.
 
 Tokens em `app/globals.css` e `components/charts/theme.ts`.
+
+## Ranking paginado
+
+Os dois gráficos que ranqueiam tudo — **investimento por conjunto** (visão geral) e
+**engajamentos por criativo** (criativos) — mostram **8 barras por vez**, com
+paginação no rodapé do card. Com dezenas de conjuntos e criativos, a lista inteira
+virava um gráfico de vários metros de altura que empurrava o resto da página para
+fora do alcance.
+
+O eixo fica preso ao máximo do ranking inteiro, não ao da página. Deixar cada
+página reescalar desenharia o oitavo colocado como uma barra cheia, e as páginas
+deixariam de ser comparáveis entre si. A leitura escrita embaixo continua descrevendo
+o conjunto completo, e o rodapé diz sempre "1–8 de 43", para o leitor saber que está
+vendo parte de uma lista maior. Trocar a métrica volta para a primeira página, já que
+a ordenação muda por inteiro.
 
 ## Seletores de métrica
 

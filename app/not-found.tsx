@@ -23,10 +23,10 @@ export default function NotFound() {
             Voltar ao início
           </Link>
           <Link
-            href="/visao-geral"
+            href="/campanha/visao-geral"
             className="rounded-pill bg-brand-yellow px-7 py-3.5 text-[13px] font-black uppercase tracking-[0.1em] text-[#16255F] transition hover:brightness-105"
           >
-            Ir para o painel
+            Ir para o painel da campanha
           </Link>
         </div>
       </div>

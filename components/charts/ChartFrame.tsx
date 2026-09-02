@@ -50,6 +50,7 @@ export function ChartFrame({
   bodyClassName,
   children,
   aside,
+  footer,
 }: {
   title: React.ReactNode;
   hint?: React.ReactNode;
@@ -62,6 +63,8 @@ export function ChartFrame({
   children: React.ReactNode;
   /** Header controls — typically a <MetricSelect />. */
   aside?: React.ReactNode;
+  /** Controls under the plot — typically a <Pager />. */
+  footer?: React.ReactNode;
 }) {
   return (
     <Card className={clsx("flex flex-col", className)}>
@@ -78,6 +81,10 @@ export function ChartFrame({
           {children}
         </div>
       </div>
+
+      {/* Sits under the plot it controls, not in the header: it acts on the
+          bars, and the header already carries the metric selector. */}
+      {footer ? <div className="px-5 pt-3">{footer}</div> : null}
 
       {insight ? (
         <div className="px-5 pb-5 pt-4">

@@ -17,6 +17,7 @@ import { CURSOR_BAND, makeTooltip } from "./ChartTooltip";
 import { tipLabel } from "./labels";
 import { ACCENT, BAR_RADIUS_RIGHT, axisLine, axisTick, gridLine } from "./theme";
 import { MetricSelect } from "@/components/ui/MetricSelect";
+import { Pager } from "@/components/ui/Pager";
 import {
   ALL_KEYS,
   METRICS,
@@ -29,6 +30,12 @@ import { aggregateBy, concentration } from "@/lib/metrics";
 import { parseAd } from "@/lib/labels";
 import { fmtBRL, fmtBRLPrecise, fmtPct } from "@/lib/format";
 import type { Metrics, Row } from "@/lib/types";
+
+/**
+ * Bars per page. A campaign runs dozens of creatives, and ranking all of them at
+ * once turns this card into a plot several screens tall.
+ */
+const PAGE_SIZE = 8;
 
 type Datum = {
   ad: string;
@@ -50,6 +57,7 @@ export function CreativeBarChart({
 }) {
   const narrow = useNarrow();
   const [metric, setMetric] = useState<MetricKey>(initialMetric);
+  const [page, setPage] = useState(0);
   const def = METRICS[metric];
 
   const data = useMemo<Datum[]>(
@@ -73,6 +81,15 @@ export function CreativeBarChart({
   const max = Math.max(...data.map((d) => d.value), 0);
   const tick = axisFormatter(metric, max);
   const mark = markFormatter(metric);
+
+  // Clamped rather than reset: narrowing the date filter can drop the page the
+  // reader was on, and landing on an empty plot reads as a broken chart.
+  const pageCount = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+  const current = Math.min(page, pageCount - 1);
+  const visible = data.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
+  // Height follows the page, not the leftovers on the last one, so paging does
+  // not make the card jump around.
+  const slots = pageCount > 1 ? PAGE_SIZE : data.length;
 
   const Tip = useMemo(
     () =>
@@ -120,19 +137,44 @@ export function CreativeBarChart({
       hint={def.hint ?? "Cada anúncio do período"}
       insight={insight}
       insightTone="good"
-      height={Math.max(240, data.length * 38 + 44)}
-      aside={<MetricSelect value={metric} options={ALL_KEYS} onChange={setMetric} />}
+      height={Math.max(240, slots * 38 + 44)}
+      aside={
+        <MetricSelect
+          value={metric}
+          options={ALL_KEYS}
+          onChange={(key) => {
+            // A new metric reorders everything, so page 3 of the old ranking
+            // means nothing in the new one.
+            setMetric(key);
+            setPage(0);
+          }}
+        />
+      }
+      footer={
+        <Pager
+          page={current}
+          pageCount={pageCount}
+          total={data.length}
+          pageSize={PAGE_SIZE}
+          noun={["criativo", "criativos"]}
+          onChange={setPage}
+        />
+      }
     >
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          data={data}
+          data={visible}
           layout="vertical"
           margin={{ top: 4, right: narrow ? 56 : 68, left: 4, bottom: 4 }}
           barCategoryGap="26%"
         >
           <CartesianGrid horizontal={false} {...gridLine} />
+          {/* The scale is pinned to the full ranking, not to the page. Letting
+              each page rescale would draw the eighth-placed creative as a
+              full-width bar, and the pages would stop being comparable. */}
           <XAxis
             type="number"
+            domain={[0, max || "auto"]}
             tick={axisTick}
             tickLine={false}
             axisLine={axisLine}

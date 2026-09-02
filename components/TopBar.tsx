@@ -6,8 +6,8 @@ import clsx from "clsx";
 import { useCampaign } from "./DataProvider";
 
 const NAV = [
-  { href: "/visao-geral", label: "Visão geral", short: "Visão geral" },
-  { href: "/criativos", label: "Criativos", short: "Criativos" },
+  { path: "visao-geral", label: "Visão geral" },
+  { path: "criativos", label: "Criativos" },
 ];
 
 /** Both round controls on the right read as one set, so they share a class. */
@@ -52,7 +52,7 @@ function HomeIcon() {
 
 export function TopBar() {
   const pathname = usePathname();
-  const { reload, refreshing, status } = useCampaign();
+  const { reload, refreshing, status, source } = useCampaign();
 
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
@@ -66,11 +66,14 @@ export function TopBar() {
         >
           <ul className="flex items-center gap-1 rounded-pill border border-white/10 bg-chrome/80 p-1 shadow-float backdrop-blur-xl">
             {NAV.map((item) => {
-              const active = pathname === item.href;
+              // Navigation stays inside the panel the reader opened — the two
+              // sources are separate dashboards that happen to share this tree.
+              const href = `/${source.slug}/${item.path}`;
+              const active = pathname === href;
               return (
-                <li key={item.href} className="flex-1 sm:flex-none">
+                <li key={href} className="flex-1 sm:flex-none">
                   <Link
-                    href={item.href}
+                    href={href}
                     aria-current={active ? "page" : undefined}
                     className={clsx(
                       "block rounded-pill px-4 py-2 text-center text-[13px] font-bold tracking-[-0.01em] transition",

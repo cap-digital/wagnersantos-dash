@@ -9,14 +9,21 @@ import {
   useState,
 } from "react";
 import { loadCampaign, peekCampaign } from "@/lib/client-cache";
+import { SOURCE_INFO, type SourceId, type SourceInfo } from "@/lib/sources";
 import type { CampaignPayload, Creative, DateRange, Row } from "@/lib/types";
 
-const RANGE_KEY = "ws.range";
-const CAMPAIGN_KEY = "ws.campaigns";
+/**
+ * Filter state is stored per source. The two panels cover different periods, so
+ * a range remembered on one would be clamped into nonsense on the other.
+ */
+const rangeKey = (source: SourceId) => `ws.${source}.range`;
+const campaignKey = (source: SourceId) => `ws.${source}.campaigns`;
 
 type Status = "loading" | "ready" | "error";
 
 type Ctx = {
+  /** Which panel this tree is showing, and its labels. */
+  source: SourceInfo;
   status: Status;
   error: string | null;
   payload: CampaignPayload | null;
@@ -70,8 +77,14 @@ function writeStored(key: string, value: unknown) {
   }
 }
 
-export function DataProvider({ children }: { children: React.ReactNode }) {
-  const cached = peekCampaign();
+export function DataProvider({
+  source,
+  children,
+}: {
+  source: SourceId;
+  children: React.ReactNode;
+}) {
+  const cached = peekCampaign(source);
   const [payload, setPayload] = useState<CampaignPayload | null>(cached);
   const [status, setStatus] = useState<Status>(cached ? "ready" : "loading");
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +99,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     setRangeState((current) => {
       if (current) return clampRange(current, data.days);
-      const stored = readStored<DateRange>(RANGE_KEY);
+      const stored = readStored<DateRange>(rangeKey(source));
       const fallback = { from: data.days[0], to: data.days[data.days.length - 1] };
       return stored?.from && stored?.to ? clampRange(stored, data.days) : fallback;
     });
@@ -94,14 +107,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     // Drop campaigns that no longer exist; an empty list keeps meaning "all",
     // so campaigns added later are picked up without touching the filter.
     setSelectedState((current) => {
-      const source = current.length ? current : (readStored<string[]>(CAMPAIGN_KEY) ?? []);
-      return source.filter((c) => data.campaigns.includes(c));
+      const chosen = current.length ? current : (readStored<string[]>(campaignKey(source)) ?? []);
+      return chosen.filter((c) => data.campaigns.includes(c));
     });
-  }, []);
+  }, [source]);
 
   useEffect(() => {
     let alive = true;
-    loadCampaign()
+    loadCampaign(source)
       .then((data) => alive && ingest(data))
       .catch((err: Error) => {
         if (!alive) return;
@@ -111,33 +124,36 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return () => {
       alive = false;
     };
-  }, [ingest]);
+  }, [ingest, source]);
 
   const reload = useCallback(() => {
     setRefreshing(true);
     setError(null);
-    loadCampaign(true)
+    loadCampaign(source, true)
       .then(ingest)
       .catch((err: Error) => {
         setError(err.message);
-        if (!peekCampaign()) setStatus("error");
+        if (!peekCampaign(source)) setStatus("error");
       })
       .finally(() => setRefreshing(false));
-  }, [ingest]);
+  }, [ingest, source]);
 
   const setRange = useCallback(
     (next: DateRange) => {
       const clamped = payload ? clampRange(next, payload.days) : next;
       setRangeState(clamped);
-      writeStored(RANGE_KEY, clamped);
+      writeStored(rangeKey(source), clamped);
     },
-    [payload],
+    [payload, source],
   );
 
-  const setSelectedCampaigns = useCallback((next: string[]) => {
-    setSelectedState(next);
-    writeStored(CAMPAIGN_KEY, next);
-  }, []);
+  const setSelectedCampaigns = useCallback(
+    (next: string[]) => {
+      setSelectedState(next);
+      writeStored(campaignKey(source), next);
+    },
+    [source],
+  );
 
   const value = useMemo<Ctx>(() => {
     const allDays = payload?.days ?? [];
@@ -165,6 +181,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const creativeIndex = new Map((payload?.creatives ?? []).map((c) => [c.ad, c]));
 
     return {
+      source: SOURCE_INFO[source],
       status,
       error,
       payload,
@@ -185,6 +202,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     payload,
     range,
     selectedCampaigns,
+    source,
     status,
     error,
     refreshing,
